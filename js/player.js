@@ -1,6 +1,6 @@
 "use strict";
 
-$('#canva').on('mousedown', iniciarDibuix);
+$('#canva').on('mousedown', iniciarDibuixPath);
 $('#canva').on('mouseup', tancarLinia);
 $('.opcions').on('click', opcions);
 
@@ -40,6 +40,7 @@ function opcions(e) {
             break;
         case "red":
             color = "red";
+            break;
         case "blue":
             color = "blue"
             break;
@@ -57,12 +58,33 @@ function opcions(e) {
     }
 }
 
-function iniciarDibuix(e) {
-    let newG = "<g id='grup_linies' fill='white' stroke="+ color +" stroke-width='5'></g>";
+function iniciarDibuixPath(e){
+    let x1 = e.pageX - 120;
+    let y1 = e.pageY - 31.7;
+    let path = `<path d='M ${x1} ${y1}' fill='none' stroke='${color}' stroke-width='3' />`;
     let canva = document.getElementById('canva');
-    canva.innerHTML += newG;
+    canva.innerHTML += path;
+    guardarCoords(x1, y1);
+    $('#canva').bind('mousemove', {
+        x1: x1,
+        y1: y1
+    }, dibuixPath);
+}
+
+function dibuixPath(event){
+    let paths = document.getElementsByTagName('path');
+    guardarCoords(event.pageX - 120, event.pageY - 31.7);
+    let dAttr = getdAttr();
+    paths[paths.length-1].setAttribute('d', dAttr);
+}
+
+function iniciarDibuix(e) {
     let x1 = e.pageX;
     let y1 = e.pageY;
+    let newG = "<g fill='white' stroke="+ color +" stroke-width='5'></g>";
+    let path = `<path d='M ${x1} ${y1}' />`;
+    let canva = document.getElementById('canva');
+    canva.innerHTML += newG;
     guardarCoords(x1, y1);
     $('#canva').bind('mousemove', {
         x1: x1,
@@ -72,12 +94,13 @@ function iniciarDibuix(e) {
 
 function dibuix(event) {
     let linia = getCoords(event.pageX, event.pageY);
-    let grup = document.getElementById('grup_linies');
-    grup.innerHTML += linia;
+    let grup = document.getElementsByTagName('g');
+    grup[grup.length-1].innerHTML += linia;
 }
 
 function tancarLinia() {
     $('#canva').unbind('mousemove');
+    coordsArray = [];
 }
 
 function getCoords(x, y) {
@@ -88,6 +111,19 @@ function getCoords(x, y) {
     coordi = coordsArray[coordsArray.length - 2];
     let nova_linia = `<line x1='${coordi.x}' y1='${coordi.y}' x2='${coordf.x}' y2='${coordf.y}' />`;
     return nova_linia;
+}
+
+function getdAttr(){
+    let str = "";
+    for (let index = 0; index < coordsArray.length; index++) {
+        const element = coordsArray[index];
+        if (index === 0) {
+            str += `M ${element.x} ${element.y}`;
+        } else {
+            str += ` L ${element.x} ${element.y}`;
+        }
+    }
+    return str;
 }
 
 function guardarCoords(x, y) {
