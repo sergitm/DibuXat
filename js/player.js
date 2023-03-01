@@ -7,7 +7,7 @@ $('.opcions').on('click', opcions);
 let coordsArray = [];
 let socket;
 let color = "black";
-
+let id = '';
 
 $(function () {
     socket = new WebSocket('ws://localhost:8180');
@@ -20,6 +20,14 @@ $(function () {
 
     socket.onmessage = function (event) {
         var m = JSON.parse(event.data);
+        switch(m.accio){
+            case "id":
+            id = m.id;
+            break;
+
+            default:
+                break;
+        }
         console.log('Message received: ' + event.data);
     };
 
@@ -59,9 +67,9 @@ function opcions(e) {
 }
 
 function iniciarDibuixPath(e){
-    let x1 = e.pageX - 120;
-    let y1 = e.pageY - 31.7;
-    let path = `<path d='M ${x1} ${y1}' fill='none' stroke='${color}' stroke-width='3' />`;
+    let x1 = e.offsetX;
+    let y1 = e.offsetY;
+    let path = `<path d='M ${x1} ${y1}' fill='none' name='${id}' stroke='${color}' stroke-width='3' />`;
     let canva = document.getElementById('canva');
     canva.innerHTML += path;
     guardarCoords(x1, y1);
@@ -73,14 +81,14 @@ function iniciarDibuixPath(e){
 
 function dibuixPath(event){
     let paths = document.getElementsByTagName('path');
-    guardarCoords(event.pageX - 120, event.pageY - 31.7);
+    guardarCoords(event.offsetX, event.offsetY);
     let dAttr = getdAttr();
     paths[paths.length-1].setAttribute('d', dAttr);
 }
 
 function iniciarDibuix(e) {
-    let x1 = e.pageX;
-    let y1 = e.pageY;
+    let x1 = e.offsetX;
+    let y1 = e.offsetY;
     let newG = "<g fill='white' stroke="+ color +" stroke-width='5'></g>";
     let path = `<path d='M ${x1} ${y1}' />`;
     let canva = document.getElementById('canva');
@@ -93,13 +101,16 @@ function iniciarDibuix(e) {
 }
 
 function dibuix(event) {
-    let linia = getCoords(event.pageX, event.pageY);
+    let linia = getCoords(event.offsetX, event.offsetY);
     let grup = document.getElementsByTagName('g');
     grup[grup.length-1].innerHTML += linia;
 }
 
 function tancarLinia() {
     $('#canva').unbind('mousemove');
+    var paths = $(`path[name="${id}"]`);
+    let path = paths[paths.length - 1];
+    socket.send(JSON.stringify({accio: 'newPath', path: path}));
     coordsArray = [];
 }
 
