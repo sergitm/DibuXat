@@ -43,20 +43,24 @@ $(function () {
                 $(`#ids tbody`).empty();
 
                 m.ids.forEach((id, index) => {
-                    var td = `<td id='${id}'>${icona}</td>`
-                    $(`#ids tbody`).append(`
-                        <tr>
-                            <td>${index}</td>
-                            <td>${id}</td>
-                            ${td}
-                        </tr>
-                    `);
-                    $(td).on('click', () => {
+                    const tr = $('<tr></tr>');
+                    tr.append(`<td>${index}</td>`);
+                    tr.append(`<td>${id}</td>`);
+
+                    const td = $('<td>' + icona + '</td>');
+
+                    td.on('click', () => {
+                        console.log(id);
                         socket.send(JSON.stringify({
                             accio: "clearClient",
                             id: id
                         }));
                     });
+
+                    tr.append(td);
+
+                    $(`#ids tbody`).append(tr);
+                    
                 });
                 break;
             default:

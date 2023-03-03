@@ -61,7 +61,7 @@ wsServer.on('connection', (client, peticio) => {
 				client.paths.push(missatge.path);
 				//Enviar paths a tots els clients
 				updatePathsClients();
-			
+
 				break;
 			case "clear":
 				paths = paths.filter(path => !client.paths.includes(path));
@@ -107,14 +107,18 @@ wsServer.on('connection', (client, peticio) => {
 					//client.close();
 				};
 				break;
-				case "clearClient":
-					//Eliminar paths del client
-					client = wsServer.clients.find(client => client.id == missatge.id);
-					if(client == undefined) return;
-					paths = paths.filter(path => !client.paths.includes(path));
-					client.paths = [];
-					updatePathsClients();
-					break;
+			case "clearClient":
+				//Eliminar paths del client
+				var cli;
+				wsServer.clients.forEach(function each(client) {
+					if (client.id == id) cli = client;
+				});
+				console.log(cli);
+				
+				paths = paths.filter(path => !cli.paths.includes(path));
+				cli.paths = [];
+				updatePathsClients();
+				break;
 
 			default:
 				break;
@@ -140,7 +144,7 @@ wsServer.on('connection', (client, peticio) => {
 			updatePathsClients();
 			console.log(`Client tancat: ${id}`);
 		}
-		
+
 	});
 });
 
@@ -150,6 +154,8 @@ function updatePathsClients() {
 		paths: paths
 	}));
 }
+
+
 
 function enviarIds() {
 	var ids = [];
