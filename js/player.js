@@ -2,12 +2,15 @@
 
 $('#canva').on('mousedown', iniciarDibuixPath);
 $('#canva').on('mouseup', tancarLinia);
-$('.opcions').on('click', opcions);
+$('#canva').on('mouseleave', tancarLinia);
+$('#colors div').on('click', opcions);
+
 
 let coordsArray = [];
 let socket;
 let color = "black";
 let id = '';
+let path;
 
 $(function () {
     socket = new WebSocket('ws://localhost:8180');
@@ -23,12 +26,34 @@ $(function () {
         switch(m.accio){
             case "id":
             id = m.id;
+            $('#canva').empty();
+
+            m.paths.forEach(path => {
+                console.log(path);
+                document.getElementById('canva').innerHTML += path;
+            });
+            
             break;
+
+            case "updatePath":
+            $('#canva').empty();
+            m.paths.forEach(path => {
+                console.log(path);
+                document.getElementById('canva').innerHTML += path;
+            });
+            
+            break;
+
+            case "config":
+                //Modificar el tamany del canvas i el viewBox
+                $('#canva').attr('width', m.width);
+                $('#canva').attr('height', m.height);
+                $('#canva').attr('viewBox', '0 0 ' + m.width + ' ' + m.height);
+                break;
 
             default:
                 break;
         }
-        console.log('Message received: ' + event.data);
     };
 
     socket.onerror = function (event) {
@@ -36,12 +61,12 @@ $(function () {
     };
 
     socket.onclose = function (event) {
-        console.log('Connection closed');
+        alert("S'ha tancat la connexió");
+        window.location.href = '/';
     };
 });
 
 function opcions(e) {
-    console.log(e.target.id);
     switch (e.target.id) {
         case "black":
             color = "black";
@@ -59,7 +84,10 @@ function opcions(e) {
             color = "white";
             break;
             case "clear":
-                $('#canva').empty();
+                socket.send(JSON.stringify({accio: "clear"}));
+                break;
+            case "desfer":
+                socket.send(JSON.stringify({accio: "desfer"}));
                 break;
         default:
             break;
@@ -69,7 +97,7 @@ function opcions(e) {
 function iniciarDibuixPath(e){
     let x1 = e.offsetX;
     let y1 = e.offsetY;
-    let path = `<path d='M ${x1} ${y1}' fill='none' name='${id}' stroke='${color}' stroke-width='3' />`;
+    path = `<path d='M ${x1} ${y1}' fill='none' name='${id}' stroke='${color}' stroke-width='3' />`;
     let canva = document.getElementById('canva');
     canva.innerHTML += path;
     guardarCoords(x1, y1);
@@ -100,29 +128,14 @@ function iniciarDibuix(e) {
     }, dibuix);
 }
 
-function dibuix(event) {
-    let linia = getCoords(event.offsetX, event.offsetY);
-    let grup = document.getElementsByTagName('g');
-    grup[grup.length-1].innerHTML += linia;
-}
-
 function tancarLinia() {
     $('#canva').unbind('mousemove');
     var paths = $(`path[name="${id}"]`);
-    let path = paths[paths.length - 1];
-    socket.send(JSON.stringify({accio: 'newPath', path: path}));
+    var path = paths[paths.length - 1];
+    socket.send(JSON.stringify({accio: 'newPath', path: path.outerHTML}));
     coordsArray = [];
 }
 
-function getCoords(x, y) {
-    guardarCoords(x, y);
-    let coordi;
-    let coordf;
-    coordf = coordsArray[coordsArray.length - 1];
-    coordi = coordsArray[coordsArray.length - 2];
-    let nova_linia = `<line x1='${coordi.x}' y1='${coordi.y}' x2='${coordf.x}' y2='${coordf.y}' />`;
-    return nova_linia;
-}
 
 function getdAttr(){
     let str = "";

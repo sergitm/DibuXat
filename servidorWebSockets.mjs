@@ -12,6 +12,11 @@ const wsServer = new WebSocketServer({
 	port: 8180
 });
 let paths = [];
+let admin = false;
+let width = 640;
+let height = 480;
+let tolerancia = 1;
+let clients = [];
 
 console.log("Servidor WebSocket escoltant en http://localhost:8180");
 
@@ -30,14 +35,22 @@ wsServer.on('connection', (client, peticio) => {
 	// Guardar identificador (IP i Port) del nou client
 	let id = peticio.socket.remoteAddress + ":" + peticio.socket.remotePort;
 
-	// Enviar salutació al nou client
-	//	i avisar a tots els altres que s'ha afegit un nou client
-	client.send(JSON.stringify({accio:'id', id: id }));
-	console.log(`Nou client afegit: ${id}`);
 
-	// Al rebre un missatge d'aques client
-	//	reenviar-lo a tothom (inclòs ell mateix)
-	
+	// Enviar-li el seu identificador
+	client.send(JSON.stringify({
+		accio: 'id',
+		id: id,
+		paths: paths
+	}));
+	console.log(`Nou client afegit: ${id}`);
+	client.paths = [];
+	client.id = id;
+
+	// Si hi ha un admin, enviar-li la llista de ids clients
+	if (admin) {
+		enviarIds();
+	}
+
 	client.on('message', missatge => {
 		missatge = JSON.parse(missatge);
 		//switch per comprobar la acció del missatge
@@ -45,16 +58,108 @@ wsServer.on('connection', (client, peticio) => {
 			//Si la accio es newPath afegim el path al array de paths y envíem el path a tots els clients menys al que ha enviat el message
 			case "newPath":
 				paths.push(missatge.path);
+				client.paths.push(missatge.path);
 				//Enviar paths a tots els clients
-				broadcast(JSON.stringify({
-					accio: "new Path",
-					paths: paths
-				}), client);
+				updatePathsClients();
+			
 				break;
+			case "clear":
+				paths = paths.filter(path => !client.paths.includes(path));
+				client.paths = [];
+				updatePathsClients();
+				break;
+			case "desfer":
+				//Eliminar el último path del array de clients.paths en paths
+				paths = paths.filter(path => path !== client.paths[client.paths.length - 1]);
+				client.paths.pop();
+				updatePathsClients();
+				break;
+			case "clearAll":
+				paths = [];
+				updatePathsClients();
+				break;
+			case "config":
+				//comprobar si client es admin
+				if (client.admin == true) {
+					//comprobar que la config es correcta
+					if (missatge.width >= 640 && missatge.width <= 1280 && missatge.height >= 480 && missatge.height <= 720 && tolerancia >= 1 && tolerancia <= 5) {
+						width = missatge.width;
+						height = missatge.height;
+						tolerancia = missatge.tolerancia;
+						broadcast(JSON.stringify({
+							accio: "config",
+							width: width,
+							height: height
+						}));
+					}
+				}
+				break;
+			case "admin":
+				if (!admin) {
+					admin = client;
+					client.admin = true;
+					enviarIds();
+				} else {
+					client.send(JSON.stringify({
+						accio: "close"
+					}));
+					//enviar missatge en el que es digui que només hi pot haver un administrador
+					//client.close();
+				};
+				break;
+				case "clearClient":
+					//Eliminar paths del client
+					client = wsServer.clients.find(client => client.id == missatge.id);
+					if(client == undefined) return;
+					paths = paths.filter(path => !client.paths.includes(path));
+					client.paths = [];
+					updatePathsClients();
+					break;
+
 			default:
 				break;
 		}
-		broadcast(`<strong>${id}: </strong>${missatge}`);
-		console.log(`Missatge de ${id} --> ${missatge}`);
+	});
+
+	client.on('close', () => {
+		if (client.admin == true) {
+			admin = false;
+			width = 640;
+			height = 480;
+			tolerancia = 1;
+			broadcast(JSON.stringify({
+				accio: "config",
+				width: width,
+				height: height,
+				tolerancia: tolerancia
+			}));
+		} else {
+			// Eliminar el client de la llista de clients
+			enviarIds();
+			paths = paths.filter(path => !client.paths.includes(path));
+			updatePathsClients();
+			console.log(`Client tancat: ${id}`);
+		}
+		
 	});
 });
+
+function updatePathsClients() {
+	broadcast(JSON.stringify({
+		accio: "updatePath",
+		paths: paths
+	}));
+}
+
+function enviarIds() {
+	var ids = [];
+	wsServer.clients.forEach(function each(client) {
+		ids.push(client.id);
+	});
+	console.log(wsServer.clients);
+	admin.send(JSON.stringify({
+		accio: "clients",
+		ids: ids
+	}));
+
+}
