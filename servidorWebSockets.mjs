@@ -39,8 +39,7 @@ wsServer.on('connection', (client, peticio) => {
 	// Enviar-li el seu identificador
 	client.send(JSON.stringify({
 		accio: 'id',
-		id: id,
-		paths: paths
+		id: id
 	}));
 	console.log(`Nou client afegit: ${id}`);
 	client.paths = [];
@@ -51,15 +50,15 @@ wsServer.on('connection', (client, peticio) => {
 		enviarIds();
 	}
 
+	updatePathsClients();
+
 	client.on('message', missatge => {
 		missatge = JSON.parse(missatge);
 		//switch per comprobar la acció del missatge
 		switch (missatge.accio) {
-			//Si la accio es newPath afegim el path al array de paths y envíem el path a tots els clients menys al que ha enviat el message
 			case "newPath":
 				paths.push(missatge.path);
 				client.paths.push(missatge.path);
-				//Enviar paths a tots els clients
 				updatePathsClients();
 
 				break;
@@ -69,7 +68,6 @@ wsServer.on('connection', (client, peticio) => {
 				updatePathsClients();
 				break;
 			case "desfer":
-				//Eliminar el último path del array de clients.paths en paths
 				paths = paths.filter(path => path !== client.paths[client.paths.length - 1]);
 				client.paths.pop();
 				updatePathsClients();
@@ -103,17 +101,19 @@ wsServer.on('connection', (client, peticio) => {
 					client.send(JSON.stringify({
 						accio: "close"
 					}));
-					//enviar missatge en el que es digui que només hi pot haver un administrador
-					//client.close();
+					
+					client.close();
 				};
 				break;
 			case "clearClient":
-				//Eliminar paths del client
+
+				//Eliminar paths del client i eliminar els seus paths del array de paths
+				var id = missatge.id;
 				var cli;
 				wsServer.clients.forEach(function each(client) {
 					if (client.id == id) cli = client;
 				});
-				console.log(cli);
+				if (cli == undefined) return;
 				
 				paths = paths.filter(path => !cli.paths.includes(path));
 				cli.paths = [];
@@ -160,9 +160,8 @@ function updatePathsClients() {
 function enviarIds() {
 	var ids = [];
 	wsServer.clients.forEach(function each(client) {
-		ids.push(client.id);
+		if (!client.admin) ids.push(client.id);
 	});
-	console.log(wsServer.clients);
 	admin.send(JSON.stringify({
 		accio: "clients",
 		ids: ids

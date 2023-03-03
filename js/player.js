@@ -26,13 +26,7 @@ $(function () {
         switch(m.accio){
             case "id":
             id = m.id;
-            $('#canva').empty();
-
-            m.paths.forEach(path => {
-                console.log(path);
-                document.getElementById('canva').innerHTML += path;
-            });
-            
+           
             break;
 
             case "updatePath":
